@@ -1,0 +1,98 @@
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+print("setup complete")
+
+# 1.Import the dataset and explore basic info (nulls, data types). 
+titanic = pd.read_csv("/kaggle/input/d/nainarathore/titanic-dataset/Titanic-Dataset.csv")
+np.random.seed(0)
+print("done")
+
+titanic.head()
+print("\nDataset Info:")
+titanic.info()
+
+print("\nMissing Values Count:")
+print(titanic.isnull().sum())
+
+# 2.Handle missing values using mean/median/imputation.  
+
+# Mean imputation for 'Fare'
+if titanic['Fare'].isnull().sum() > 0:
+    titanic['Fare'].fillna(titanic['Fare'].mean(), inplace=True)
+
+# Median imputation for 'Age'
+if titanic['Age'].isnull().sum() > 0:
+    titanic['Age'].fillna(titanic['Age'].median(), inplace=True)
+
+# Mode imputation for 'Embarked'
+if titanic['Embarked'].isnull().sum() > 0:
+    titanic['Embarked'].fillna(titanic['Embarked'].mode()[0], inplace=True)
+
+# Optional: Drop 'Cabin' if too many missing values
+if titanic['Cabin'].isnull().sum() > 0.5 * len(titanic):
+    titanic.drop(columns='Cabin', inplace=True)
+
+# Check again
+print("\nMissing Values After Imputation:")
+print(titanic.isnull().sum())
+
+
+#3.Convert categorical features into numerical using encoding
+
+print("Columns before encoding:", titanic.columns)
+if 'Pclass' in titanic.columns:
+    titanic = pd.get_dummies(titanic, columns=['Pclass'], drop_first=True)
+
+# Automatically detect and encode all object-type (categorical) columns
+categorical_cols = titanic.select_dtypes(include='object').columns
+
+# Apply one-hot encoding with drop_first=True to avoid multicollinearity
+titanic = pd.get_dummies(titanic, columns=categorical_cols, drop_first=True)
+
+# Check the updated columns
+print("Columns after encoding:")
+print(titanic.columns)
+
+
+#4.Normalize/standardize the numerical features.
+from sklearn.preprocessing import StandardScaler
+
+# List of numerical columns to scale 
+numerical_cols = ['Age', 'Fare']
+numerical_cols = [col for col in numerical_cols if col in titanic.columns]
+
+# Standardize
+scaler = StandardScaler()
+titanic[numerical_cols] = scaler.fit_transform(titanic[numerical_cols])
+
+print("Standardized numerical features:")
+print(titanic[numerical_cols].head())
+
+
+
+#5.Visualize outliers using boxplots and remove them
+# List of scaled numerical columns
+numerical_cols = ['Age', 'Fare']
+
+# Step 1: Visualize outliers using boxplots
+for col in numerical_cols:
+    plt.figure(figsize=(6, 4))
+    sns.boxplot(x=titanic[col])
+    plt.title(f"Boxplot for {col}")
+    plt.show()
+
+# Step 2: Remove outliers using the IQR method
+for col in numerical_cols:
+    Q1 = titanic[col].quantile(0.25)
+    Q3 = titanic[col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    # Keep only rows within the IQR range
+    titanic = titanic[(titanic[col] >= lower_bound) & (titanic[col] <= upper_bound)]
+
+# Final shape after removing outliers
+print("\nShape after outlier removal:", titanic.shape)
